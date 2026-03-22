@@ -1,0 +1,10 @@
+{
+  "name": "TradeAI Signals",
+  "short_name": "TradeAI",
+  "description": "Sinais de trading com IA — Brent, ouro, US500, Forex CFDs",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "lang": "pt"
+}

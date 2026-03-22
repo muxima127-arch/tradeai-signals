@@ -1,0 +1,4 @@
+# Python runtime (Vercel / optional local) — api/python/signals.py
+fastapi==0.115.6
+yfinance==0.2.51
+numpy==2.1.3
