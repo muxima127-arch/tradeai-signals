@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Zap, AlertCircle } from "lucide-react";
+import { createClientSafe } from "@/lib/supabase/server";
+import { PricingButton } from "@/components/pricing-button";
 
 export const metadata = {
   title: "Preços — TradeAI Signals",
@@ -15,7 +16,6 @@ const plans = [
     period: "7 dias",
     features: ["5 sinais/dia", "Dashboard", "Email support"],
     highlight: false,
-    href: "/signup",
     stripe: null,
   },
   {
@@ -24,8 +24,7 @@ const plans = [
     period: "mês",
     features: ["5 sinais/dia", "Alertas email", "Risk score", "Suporte prioritário"],
     highlight: false,
-    href: "/signup?plan=basic",
-    stripe: "basic",
+    stripe: "basic" as const,
   },
   {
     id: "premium",
@@ -33,8 +32,7 @@ const plans = [
     period: "mês",
     features: ["Sinais ilimitados", "Alertas Telegram", "Backtest histórico IA", "Prioridade máxima"],
     highlight: true,
-    href: "/signup?plan=premium",
-    stripe: "premium",
+    stripe: "premium" as const,
   },
 ];
 
@@ -52,6 +50,18 @@ export default async function PricingPage({
   const sp = await searchParams;
   const upgrade = sp.upgrade === "true";
   const cancelled = sp.checkout === "cancel";
+
+  // Check if user is logged in
+  let isLoggedIn = false;
+  try {
+    const supabase = await createClientSafe();
+    if (supabase) {
+      const { data: { user } } = await supabase.auth.getUser();
+      isLoggedIn = !!user;
+    }
+  } catch {
+    isLoggedIn = false;
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
@@ -121,15 +131,12 @@ export default async function PricingPage({
               ))}
             </CardContent>
             <CardFooter>
-              <Button
-                asChild
-                className="w-full rounded-xl"
-                variant={p.highlight ? "default" : "outline"}
-              >
-                <Link href={p.href}>
-                  {p.id === "trial" ? "Começar grátis" : "Subscrever"}
-                </Link>
-              </Button>
+              <PricingButton
+                planId={p.id}
+                stripe={p.stripe}
+                isLoggedIn={isLoggedIn}
+                highlight={p.highlight}
+              />
             </CardFooter>
           </Card>
         ))}
