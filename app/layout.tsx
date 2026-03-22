@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -15,15 +17,17 @@ const geistMono = Geist_Mono({
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://tradeai-signals.vercel.app";
+const ogTitle = "TradeAI Signals — Sinais IA para Day Trading";
+const ogDescription =
+  "Sinais de trading com IA (GB+LSTM), precisão 78%. Brent, Ouro, US500, Forex CFDs.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "TradeAI Signals — Sinais IA para Day Trading",
+    default: ogTitle,
     template: "%s · TradeAI Signals",
   },
-  description:
-    "Gerador de sinais com IA (ensemble GB+LSTM) para Brent, ouro, US500 e Forex CFDs. Risk score, backtest e alertas em tempo real.",
+  description: ogDescription,
   applicationName: "TradeAI Signals",
   keywords: [
     "trading",
@@ -42,14 +46,15 @@ export const metadata: Metadata = {
     locale: "pt_PT",
     url: siteUrl,
     siteName: "TradeAI Signals",
-    title: "TradeAI Signals — Sinais IA para Day Trading",
-    description:
-      "Precisão simulada 78%, ensemble Gradient Boosting + LSTM, dashboard em tempo real.",
+    title: ogTitle,
+    description: ogDescription,
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "TradeAI Signals" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "TradeAI Signals",
-    description: "Sinais IA para day traders — Brent, ouro, US500, Forex CFDs.",
+    title: ogTitle,
+    description: ogDescription,
+    images: ["/og-image.png"],
   },
   manifest: "/manifest.json",
   appleWebApp: {
@@ -80,6 +85,8 @@ export default function RootLayout({
           {children}
           <PwaRegister />
         </Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

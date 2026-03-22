@@ -35,8 +35,8 @@ export async function POST(req: Request) {
       customer_email: user.email,
       client_reference_id: user.id,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/dashboard/signals?checkout=success`,
-      cancel_url: `${origin}/pricing?checkout=cancel`,
+      success_url: `${origin.replace(/\/$/, "")}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin.replace(/\/$/, "")}/pricing?checkout=cancel`,
       metadata: {
         supabase_user_id: user.id,
         plan: body.price === "premium" ? "premium" : "basic",
@@ -49,6 +49,13 @@ export async function POST(req: Request) {
         },
       },
     });
+
+    try {
+      const { track } = await import("@vercel/analytics/server");
+      await track("checkout_started", { plan: body.price === "premium" ? "premium" : "basic" });
+    } catch {
+      /* opcional */
+    }
 
     return NextResponse.json({ url: session.url });
   } catch (e) {

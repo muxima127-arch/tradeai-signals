@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClientSafe } from "@/lib/supabase/client";
+import { ManageSubscriptionButton } from "@/components/manage-subscription-button";
 import { Moon, Sun, LayoutDashboard, LogOut, CreditCard } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -87,6 +88,7 @@ export function DashboardShell({
                 Upgrade
               </Button>
             ) : null}
+            <ManageSubscriptionButton variant="outline" className="hidden sm:inline-flex" />
             <Button
               variant="ghost"
               size="icon-sm"

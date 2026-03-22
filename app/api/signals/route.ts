@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getIASignalsResult, signalToJsonRow } from "@/lib/ia-signals";
 import { maxSignalsForTier } from "@/lib/subscription";
+import { broadcastToSubscribers } from "@/lib/telegram";
 import { createClientSafe, createServiceRoleClient } from "@/lib/supabase/server";
 import type { SubscriptionTier } from "@/types/database";
 
@@ -53,6 +54,17 @@ export async function GET() {
   const m = fullResult.meta;
   const yahooConnected =
     m.engine === "python" || m.dataSource === "yahoo";
+
+  const top = signals[0];
+  if (top) {
+    const g = globalThis as { __tradeaiTgBroadcast?: number };
+    const now = Date.now();
+    const throttleMs = 10 * 60 * 1000;
+    if (!g.__tradeaiTgBroadcast || now - g.__tradeaiTgBroadcast >= throttleMs) {
+      g.__tradeaiTgBroadcast = now;
+      void broadcastToSubscribers(top).catch(() => {});
+    }
+  }
 
   return NextResponse.json({
     signals,

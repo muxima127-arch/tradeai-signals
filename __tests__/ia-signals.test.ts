@@ -109,14 +109,16 @@ describe("getIASignalsResult", () => {
     fetchSpy.mockRestore();
   });
 
-  it("Python fail → node-fallback with Yahoo when bars OK", async () => {
+  it("Python fail → mock fallback (demo) quando USE_PYTHON_BOT", async () => {
     process.env.USE_PYTHON_BOT = "true";
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("down"));
     vi.mocked(marketData.fetchDailyBars).mockImplementation(async () => makeOhlcBars(45));
     const r = await getIASignalsResult({ limit: 2 });
     expect(r.meta.engine).toBe("node-fallback");
     expect(r.meta.pythonAttempted).toBe(true);
-    expect(r.meta.dataSource).toBe("yahoo");
+    expect(r.meta.dataSource).toBe("fallback");
+    expect(r.signals.length).toBe(2);
+    expect(r.signals.every((s) => s.isFallback)).toBe(true);
     fetchSpy.mockRestore();
   });
 

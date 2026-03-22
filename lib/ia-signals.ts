@@ -13,6 +13,7 @@ import {
   riskScore01,
   rangeVolatilityNorm,
 } from "@/lib/signal-features";
+import { generateDemoSignals } from "@/lib/ia-signals-demo";
 import type {
   ConfidenceLabel,
   GeneratedSignal,
@@ -231,6 +232,27 @@ function fallbackSynthetic(meta: (typeof ASSETS)[number]): GeneratedSignal {
 }
 
 async function fetchPythonSignalsAsGenerated(): Promise<GeneratedSignal[] | null> {
+  const botBase = process.env.PYTHON_BOT_URL?.replace(/\/$/, "");
+  const secret = process.env.PYTHON_BOT_SECRET;
+
+  if (botBase) {
+    try {
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (secret) headers.Authorization = `Bearer ${secret}`;
+      const res = await fetch(`${botBase}/signals`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(5_000),
+        headers,
+      });
+      if (!res.ok) return null;
+      const json = (await res.json()) as { signals?: unknown[] };
+      if (!json.signals?.length) return null;
+      return json.signals.map((raw) => mapPythonRowToGenerated(raw));
+    } catch {
+      return null;
+    }
+  }
+
   const base =
     process.env.INTERNAL_APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -324,12 +346,12 @@ export async function getIASignalsResult(
         meta: { engine: "python", dataSource: "yahoo", pythonAttempted: true },
       };
     }
-    const { signals, usedFallback } = await runNodeMotorWithMeta(limit);
+    const mock = generateDemoSignals({ seed: 42, count: limit });
     return {
-      signals,
+      signals: mock.map((s) => ({ ...s, isFallback: true })),
       meta: {
         engine: "node-fallback",
-        dataSource: usedFallback ? "fallback" : "yahoo",
+        dataSource: "fallback",
         pythonAttempted: true,
       },
     };

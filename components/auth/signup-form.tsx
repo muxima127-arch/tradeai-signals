@@ -15,32 +15,37 @@ export function SignupForm() {
   const plan = searchParams.get("plan");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const supabase = createClientSafe();
-    if (!supabase) {
-      toast.error("Configure NEXT_PUBLIC_SUPABASE_URL no .env");
-      return;
-    }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: { plan: plan ?? "trial" },
-      },
-    });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          name: name.trim() || undefined,
+          plan: plan ?? "trial",
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) {
+        toast.error(json.error ?? "Erro ao criar conta");
+        setLoading(false);
+        return;
+      }
+      toast.success("Conta criada. Verifica o email para confirmar.");
+      router.replace("/verify-email");
+      router.refresh();
+    } catch {
+      toast.error("Erro de rede");
+    } finally {
+      setLoading(false);
     }
-    toast.success("Verifique o email para confirmar.");
-    router.replace(plan ? `/dashboard/signals?checkout=${plan}` : "/dashboard/signals");
-    router.refresh();
   }
 
   async function signInGoogle() {
@@ -58,6 +63,17 @@ export function SignupForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">Nome (opcional)</Label>
+        <Input
+          id="name"
+          type="text"
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="rounded-xl"
+        />
+      </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

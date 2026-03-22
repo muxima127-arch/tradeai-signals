@@ -1,5 +1,18 @@
 export type SubscriptionTier = "free" | "basic" | "premium";
 
+/** Linha em `public.subscriptions` (Stripe). */
+export interface SubscriptionRow {
+  id: string;
+  user_id: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string;
+  plan: "basic" | "premium";
+  status: string;
+  current_period_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string | null;

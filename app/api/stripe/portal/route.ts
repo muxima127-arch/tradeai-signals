@@ -15,22 +15,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
+    let customerId: string | null = null;
+
+    const { data: subRow } = await supabase
+      .from("subscriptions")
       .select("stripe_customer_id")
-      .eq("id", user.id)
+      .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!profile?.stripe_customer_id) {
-      return NextResponse.json({ error: "No billing customer" }, { status: 400 });
+    if (subRow?.stripe_customer_id) {
+      customerId = subRow.stripe_customer_id;
+    } else {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("stripe_customer_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      customerId = profile?.stripe_customer_id ?? null;
+    }
+
+    if (!customerId) {
+      return NextResponse.json({ error: "Sem cliente Stripe" }, { status: 400 });
     }
 
     const stripe = getStripe();
     const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: profile.stripe_customer_id,
-      return_url: `${origin}/dashboard/signals`,
+      customer: customerId,
+      return_url: `${origin.replace(/\/$/, "")}/dashboard`,
     });
 
     return NextResponse.json({ url: session.url });

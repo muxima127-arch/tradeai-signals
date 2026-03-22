@@ -37,6 +37,9 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isDashboard = path.startsWith("/dashboard");
   const isAuthPage = path === "/login" || path === "/signup";
+  const isTrialPage = path.startsWith("/dashboard/trial");
+  const isVerifyPage = path === "/verify-email";
+  const isSuccessPage = path === "/success";
 
   if (isDashboard && !user) {
     const redirectUrl = request.nextUrl.clone();
@@ -46,7 +49,54 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isAuthPage && user) {
+    if (!user.email_confirmed_at) {
+      return NextResponse.redirect(new URL("/verify-email", request.url));
+    }
     return NextResponse.redirect(new URL("/dashboard/signals", request.url));
+  }
+
+  if (user && !user.email_confirmed_at) {
+    const allow =
+      isVerifyPage ||
+      isSuccessPage ||
+      path.startsWith("/api/") ||
+      path.startsWith("/auth/callback") ||
+      path === "/login" ||
+      path === "/signup";
+    if (!allow) {
+      const r = request.nextUrl.clone();
+      r.pathname = "/verify-email";
+      r.search = "";
+      return NextResponse.redirect(r);
+    }
+  }
+
+  if (user && isDashboard && !isTrialPage && !isVerifyPage && !isSuccessPage) {
+    const { data: subRows } = await supabase
+      .from("subscriptions")
+      .select("id, status")
+      .eq("user_id", user.id)
+      .in("status", ["active", "trialing"])
+      .limit(1);
+
+    const hasPaidSub = (subRows?.length ?? 0) > 0;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("trial_ends_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const trialOk =
+      profile?.trial_ends_at != null &&
+      new Date(profile.trial_ends_at).getTime() > Date.now();
+
+    if (!hasPaidSub && !trialOk) {
+      const r = request.nextUrl.clone();
+      r.pathname = "/pricing";
+      r.searchParams.set("upgrade", "true");
+      return NextResponse.redirect(r);
+    }
   }
 
   return supabaseResponse;
