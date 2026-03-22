@@ -1,11 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
 
-const PAYMENT_LINKS: Record<string, string> = {
-  basic: "https://buy.stripe.com/00weVe1rTg56c3mc00fn000",
-  premium: "https://buy.stripe.com/28El4o9Yp9GI8Rac00fn001",
-};
-
 interface PricingButtonProps {
   planId: string;
   stripe: "basic" | "premium" | null;
@@ -14,7 +9,7 @@ interface PricingButtonProps {
 }
 
 export function PricingButton({ planId, stripe, isLoggedIn, highlight }: PricingButtonProps) {
-  // Trial plan - go to dashboard if logged in, signup if not
+  // Trial plan
   if (planId === "trial" || !stripe) {
     return (
       <Button
@@ -27,26 +22,16 @@ export function PricingButton({ planId, stripe, isLoggedIn, highlight }: Pricing
     );
   }
 
-  // Paid plan - user NOT logged in: go to signup with plan param
-  if (!isLoggedIn) {
-    return (
-      <Button
-        className="w-full rounded-xl"
-        variant={highlight ? "default" : "outline"}
-        onClick={() => { window.location.href = `/signup?plan=${stripe}`; }}
-      >
-        Subscrever
-      </Button>
-    );
-  }
+  // Paid plan - go to signup with plan param (works for both logged in and not)
+  const signupUrl = isLoggedIn
+    ? `/dashboard/signals?upgrade=${stripe}`
+    : `/signup?plan=${stripe}`;
 
-  // Paid plan - user IS logged in: go directly to Stripe Payment Link
-  const paymentUrl = PAYMENT_LINKS[stripe];
   return (
     <Button
       className="w-full rounded-xl"
       variant={highlight ? "default" : "outline"}
-      onClick={() => { window.location.href = paymentUrl; }}
+      onClick={() => { window.location.href = signupUrl; }}
     >
       Subscrever
     </Button>
