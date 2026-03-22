@@ -1,10 +1,45 @@
 "use client";
-
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Radio } from "lucide-react";
+import { useEffect, useState } from "react";
+
+function LiveSignalsBadge() {
+  const [count, setCount] = useState<number | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchCount() {
+      try {
+        const res = await fetch("/api/signals", { cache: "no-store" });
+        const json = await res.json() as { signals?: { createdAt?: string }[] };
+        if (json.signals?.length) {
+          setCount(json.signals.length);
+          const ts = json.signals[0]?.createdAt;
+          if (ts) {
+            const d = new Date(ts);
+            const mins = Math.round((Date.now() - d.getTime()) / 60000);
+            setLastUpdate(mins < 60 ? `${mins}min` : `${Math.round(mins/60)}h`);
+          }
+        }
+      } catch {
+        // silently fail
+      }
+    }
+    void fetchCount();
+  }, []);
+
+  if (!count) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-xs text-green-400">
+      <Radio className="size-3 animate-pulse" />
+      {count} sinais ao vivo
+      {lastUpdate && <span className="text-green-500/60">· {lastUpdate} atrás</span>}
+    </span>
+  );
+}
 
 export function Hero() {
   const { t } = useI18n();
@@ -13,10 +48,13 @@ export function Hero() {
     <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 md:pb-24 md:pt-16">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.55_0.15_155/0.25),transparent)]" />
       <div className="mx-auto max-w-4xl text-center">
-        <Badge variant="secondary" className="mb-4 gap-1 border border-primary/20 bg-primary/10 px-3 py-1 text-primary">
-          <Sparkles className="size-3" />
-          {t("hero.badge")}
-        </Badge>
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+          <Badge variant="secondary" className="mb-4 gap-1 border border-primary/20 bg-primary/10 px-3 py-1 text-primary">
+            <Sparkles className="size-3" />
+            {t("hero.badge")}
+          </Badge>
+          <LiveSignalsBadge />
+        </div>
         <h1 className="font-heading text-balance text-3xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
           {t("hero.title")}
         </h1>
