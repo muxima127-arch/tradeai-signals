@@ -69,7 +69,7 @@ export default async function PricingPage({
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Planos simples</h1>
         <p className="mt-3 text-muted-foreground">
-          Trial de 7 dias em todos os planos pagos. Cancele quando quiser.
+          Planos sem compromisso. Cancele quando quiser.
         </p>
       </div>
 
