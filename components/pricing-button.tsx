@@ -2,8 +2,8 @@
 import { Button } from "@/components/ui/button";
 
 const PAYMENT_LINKS: Record<string, string> = {
-  basic: "https://buy.stripe.com/test_8x27sMdaB6uwebu0hifn002",
-  premium: "https://buy.stripe.com/test_28El4o9Yp9GI8Rac00fn001",
+  basic: "https://buy.stripe.com/00weVe1rTg56c3mc00fn000",
+  premium: "https://buy.stripe.com/28El4o9Yp9GI8Rac00fn001",
 };
 
 interface PricingButtonProps {
@@ -14,13 +14,13 @@ interface PricingButtonProps {
 }
 
 export function PricingButton({ planId, stripe, isLoggedIn, highlight }: PricingButtonProps) {
-  // Trial plan - always go to signup
+  // Trial plan - go to dashboard if logged in, signup if not
   if (planId === "trial" || !stripe) {
     return (
       <Button
         className="w-full rounded-xl"
         variant="outline"
-        onClick={() => { window.location.href = "/signup"; }}
+        onClick={() => { window.location.href = isLoggedIn ? "/dashboard" : "/signup"; }}
       >
         Começar grátis
       </Button>
