@@ -13,7 +13,7 @@ const plans = [
   {
     id: "trial",
     price: "€0",
-    period: "7 dias",
+        period: "",
     features: ["5 sinais/dia", "Dashboard", "Email support"],
     highlight: false,
     stripe: null,
@@ -22,7 +22,7 @@ const plans = [
     id: "basic",
     price: "€9",
     period: "mês",
-    features: ["5 sinais/dia", "Alertas email", "Risk score", "Suporte prioritário"],
+        features: ["7 dias de teste grátis", "5 sinais/dia", "Alertas email", "Risk score", "Suporte prioritário"],
     highlight: false,
     stripe: "basic" as const,
   },
