@@ -4,13 +4,12 @@ import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, CreditCard, Calendar, Check, X } from "lucide-react";
 
 export default async function AccountPage() {
   const cookieStore = await cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  
+
   const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll() { return cookieStore.getAll(); },
@@ -38,146 +37,80 @@ export default async function AccountPage() {
   const trialEndsAt = profile?.trial_ends_at;
   const isTrialActive = trialEndsAt && new Date(trialEndsAt) > new Date();
 
-  const planName = activeSub 
+  const planName = activeSub
     ? (activeSub.plan_id === "price_basic" ? "Starter" : "Pro")
     : (isTrialActive ? "Trial" : "Sem Plano");
 
-  const planColor = activeSub?.status === "active" 
-    ? "default" 
-    : isTrialActive 
-      ? "secondary" 
-      : "destructive";
+  const planColor = activeSub?.status === "active"
+    ? "default"
+    : isTrialActive
+    ? "secondary"
+    : "destructive";
 
   return (
     <div className="space-y-8 p-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold">Minha Conta</h1>
-        <p className="text-muted-foreground mt-1">Gere a sua subscrição e configurações</p>
+        <p className="text-sm text-muted-foreground">Gerencie sua assinatura e configurações</p>
       </div>
 
-      {/* User Info */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="size-5" />
-            Informações da Conta
-          </CardTitle>
+          <CardTitle>Assinatura Atual</CardTitle>
+          <CardDescription>Status da sua subscrição no TradeAI Signals</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Email</label>
-              <p className="font-mono text-sm">{user.email}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">User ID</label>
-              <p className="font-mono text-xs text-muted-foreground">{user.id}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Subscription */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="size-5" />
-            Subscrição Atual
-          </CardTitle>
-          <CardDescription>Detalhes do seu plano e faturação</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">{planName}</span>
-                <Badge variant={planColor}>
-                  {activeSub?.status || (isTrialActive ? "Trial" : "Inativo")}
+              <p className="text-sm font-medium">Plano</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-lg">{planName}</span>
+                <Badge variant={planColor as any}>
+                  {activeSub?.status || (isTrialActive ? "Trialing" : "Inactive")}
                 </Badge>
               </div>
-              {activeSub && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Plano: {activeSub.plan_id.replace("price_", "").toUpperCase()}
-                </p>
-              )}
-              {isTrialActive && trialEndsAt && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Trial termina em {new Date(trialEndsAt).toLocaleDateString("pt-PT")}
-                </p>
-              )}
             </div>
             {activeSub && (
-              <form action={`${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/customer-portal`} method="POST">
-                <input type="hidden" name="customer_id" value={activeSub.stripe_customer_id || ""} />
-                <Button type="submit" variant="outline" size="sm">
-                  <CreditCard className="size-4 mr-2" />
-                  Gerir Faturação
-                </Button>
+              <form action="/api/stripe/portal" method="POST">
+                <Button type="submit">Gerir Faturação</Button>
               </form>
             )}
           </div>
 
-          {!activeSub && !isTrialActive && (
-            <div className="border border-dashed border-border rounded-lg p-6 text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Não tem uma subscrição ativa. Subscreva agora para aceder a todos os sinais de trading.
+          {activeSub?.current_period_end && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Renovação automática</p>
+              <p className="text-sm mt-1">
+                {activeSub.cancel_at_period_end ? (
+                  <><span className="text-destructive">Cancelado</span> em {new Date(activeSub.current_period_end).toLocaleDateString("pt-PT")}</>
+                ) : (
+                  <>{new Date(activeSub.current_period_end).toLocaleDateString("pt-PT")}</>
+                )}
               </p>
-              <Button asChild>
-                <a href="/pricing">Ver Planos</a>
-              </Button>
             </div>
           )}
 
-          {activeSub && (
-            <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="size-4" />
-                  Próxima renovação
-                </label>
-                <p className="text-sm font-mono mt-1">
-                  {activeSub.current_period_end 
-                    ? new Date(activeSub.current_period_end).toLocaleDateString("pt-PT")
-                    : "N/A"}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                  Renovação automática
-                </label>
-                <p className="text-sm flex items-center gap-1.5 mt-1">
-                  {activeSub.cancel_at_period_end ? (
-                    <><X className="size-4 text-destructive" /> Cancelada</>
-                  ) : (
-                    <><Check className="size-4 text-emerald-500" /> Ativa</>
-                  )}
-                </p>
-              </div>
+          {!activeSub && !isTrialActive && (
+            <div className="text-sm text-muted-foreground">
+              <p>Ainda não configurou o Telegram. Contacte o suporte para ativar notificações.</p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Telegram Config */}
       <Card>
         <CardHeader>
           <CardTitle>Notificações Telegram</CardTitle>
-          <CardDescription>
-            Configure o Telegram para receber alertas de sinais em tempo real
-          </CardDescription>
+          <CardDescription>Configure o Telegram para receber alertas de sinais em tempo real</CardDescription>
         </CardHeader>
         <CardContent>
-          {profile?.telegram_chat_id || profile?.telegram_user_id ? (
+          {profile?.telegram_chat_id ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
-                <Check className="size-4 text-emerald-500" />
-                <span className="font-medium">Telegram conectado</span>
+                <span className="text-emerald-500">✓</span>
+                <span>Telegram conectado</span>
               </div>
-              {profile.telegram_chat_id && (
-                <p className="text-xs text-muted-foreground font-mono">
-                  Chat ID: {profile.telegram_chat_id}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">Chat ID: {profile.telegram_chat_id}</p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
