@@ -35,6 +35,10 @@ export function Navbar() {
           <a href="#faq" className="hover:text-foreground">
             {t("nav.faq")}
           </a>
+                  <Link href="/signals" className="hover:text-foreground flex items-center gap-1">
+          Sinais
+          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+        </Link>
         </nav>
         <div className="flex items-center gap-1 sm:gap-2">
           <DropdownMenu>
