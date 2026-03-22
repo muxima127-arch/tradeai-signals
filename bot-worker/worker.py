@@ -170,7 +170,7 @@ def run_once():
 
     if signals:
         # Limpa sinais antigos e insere os novos
-        sb.table("signals").delete().gt("id", 0).execute()
+        sb.table("signals").delete().neq("id", "").execute()
         sb.table("signals").insert(signals).execute()
         print(f"Guardados {len(signals)} sinais no Supabase.", flush=True)
     else:
