@@ -87,8 +87,9 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
+    // trialOk: allow if trial_ends_at is null (new user) OR not yet expired
     const trialOk =
-      profile?.trial_ends_at != null &&
+      profile?.trial_ends_at == null ||
       new Date(profile.trial_ends_at).getTime() > Date.now();
 
     if (!hasPaidSub && !trialOk) {
