@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 
 const PAYMENT_LINKS: Record<string, string> = {
-  basic: "https://buy.stripe.com/test_00weVe1rTg56C3mc00fn000",
+  basic: "https://buy.stripe.com/test_8x27sMdaB6uwebu0hifn002",
   premium: "https://buy.stripe.com/test_28El4o9Yp9GI8Rac00fn001",
 };
 
