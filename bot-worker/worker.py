@@ -1,7 +1,7 @@
-"""TradeAI Signals - Worker continuo que gera sinais reais e guarda no Supabase.
+\"\"\"TradeAI Signals - Worker continuo que gera sinais reais e guarda no Supabase.
 Corre a cada 4 horas com dados reais do yfinance.
 Suporta Telegram notifications para subscritores Pro.
-"""
+\"\"\"
 import time
 import os
 import math
@@ -10,35 +10,46 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 
-SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+SUPABASE_URL = os.environ.get(\"NEXT_PUBLIC_SUPABASE_URL\", \"\")
+SUPABASE_KEY = os.environ.get(\"SUPABASE_SERVICE_ROLE_KEY\", \"\")
+TELEGRAM_BOT_TOKEN = os.environ.get(\"TELEGRAM_BOT_TOKEN\", \"\")
+TELEGRAM_CHANNEL_ID = os.environ.get(\"TELEGRAM_CHANNEL_ID\", \"\")
 
 # Intervalo entre ciclos (segundos) — default 4 horas
-CYCLE_INTERVAL = int(os.environ.get("CYCLE_INTERVAL_SECONDS", "14400"))
+CYCLE_INTERVAL = int(os.environ.get(\"CYCLE_INTERVAL_SECONDS\", \"14400\"))
 
+# Lista expandida com CFDs e Ações mais negociadas
 SYMBOLS = [
-    ("BZ=F",    "Brent Crude",   2),
-    ("GC=F",    "Gold",          2),
-    ("ES=F",    "S&P 500",       2),
-    ("NQ=F",    "Nasdaq 100",    2),
-    ("CL=F",    "WTI Crude",     2),
-    ("EURUSD=X","EUR/USD",       5),
-    ("GBPUSD=X","GBP/USD",       5),
-    ("USDJPY=X","USD/JPY",       3),
+    (\"BZ=F\", \"Brent Crude\", 2),
+    (\"GC=F\", \"Gold\", 2),
+    (\"ES=F\", \"S&P 500\", 2),
+    (\"NQ=F\", \"Nasdaq 100\", 2),
+    (\"YM=F\", \"Dow 30\", 2),
+    (\"CL=F\", \"WTI Crude\", 2),
+    (\"SI=F\", \"Silver\", 3),
+    (\"EURUSD=X\", \"EUR/USD\", 5),
+    (\"GBPUSD=X\", \"GBP/USD\", 5),
+    (\"USDJPY=X\", \"USD/JPY\", 3),
+    (\"AUDUSD=X\", \"AUD/USD\", 5),
+    (\"BTC-USD\", \"Bitcoin\", 2),
+    (\"ETH-USD\", \"Ethereum\", 2),
+    (\"AAPL\", \"Apple Inc.\", 2),
+    (\"TSLA\", \"Tesla, Inc.\", 2),
+    (\"NVDA\", \"NVIDIA Corp.\", 2),
+    (\"MSFT\", \"Microsoft\", 2),
+    (\"AMZN\", \"Amazon.com\", 2),
+    (\"GOOGL\", \"Alphabet Inc.\", 2),
+    (\"META\", \"Meta Platforms\", 2),
+    (\"NFLX\", \"Netflix, Inc.\", 2)
 ]
-
 
 def clamp(n, lo, hi):
     return max(lo, min(hi, n))
-
 
 def sma(values, period):
     if len(values) < period:
         return None
     return sum(values[-period:]) / period
-
 
 def ema_last(values, period):
     if len(values) < period:
@@ -48,7 +59,6 @@ def ema_last(values, period):
     for i in range(period, len(values)):
         e = values[i] * k + e * (1 - k)
     return e
-
 
 def rsi14(closes):
     if len(closes) < 15:
@@ -66,7 +76,6 @@ def rsi14(closes):
         return 100.0
     return 100.0 - 100.0 / (1.0 + ag / al)
 
-
 def macd_histogram(closes):
     if len(closes) < 35:
         return 0.0
@@ -75,187 +84,123 @@ def macd_histogram(closes):
     if e12 is None or e26 is None:
         return 0.0
     macd = e12 - e26
-    macd_series = []
-    for j in range(26, len(closes)):
-        a = ema_last(closes[: j + 1], 12)
-        b = ema_last(closes[: j + 1], 26)
-        if a and b:
-            macd_series.append(a - b)
-    if len(macd_series) < 9:
-        return 0.0
-    signal = ema_last(macd_series, 9)
-    return macd - (signal or 0.0)
+    # Simplificado: apenas valor atual
+    return macd
 
-
-def atr14(highs, lows, closes):
-    if len(highs) < 15:
-        return abs(closes[-1] - closes[-2]) * 2 if len(closes) >= 2 else closes[-1] * 0.01
-    trs = []
-    for i in range(len(highs) - 14, len(highs)):
-        h, l, pc = highs[i], lows[i], closes[i - 1]
-        trs.append(max(h - l, abs(h - pc), abs(l - pc)))
-    return sum(trs) / len(trs)
-
-
-def bollinger_signal(closes, period=20):
-    """Retorna posicao relativa dentro das Bollinger Bands (-1 a 1)."""
-    if len(closes) < period:
-        return 0.0
-    mid = sum(closes[-period:]) / period
-    std = math.sqrt(sum((x - mid) ** 2 for x in closes[-period:]) / period)
-    if std == 0:
-        return 0.0
-    price = closes[-1]
-    return clamp((price - mid) / (2 * std), -1, 1)
-
-
-def generate_signal(sym, name, decimals):
-    import yfinance as yf
-
-    hist = yf.Ticker(sym).history(period="6mo", interval="1d", auto_adjust=True)
-    if hist is None or hist.empty or len(hist) < 40:
+def get_yfinance_data(symbol, interval=\"1h\", range_=\"5d\"):
+    url = f\"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval={interval}&range={range_}\"
+    headers = {\"User-Agent\": \"Mozilla/5.0\"}
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            result = data.get(\"chart\", {}).get(\"result\", [{}])[0]
+            indicators = result.get(\"indicators\", {}).get(\"quote\", [{}])[0]
+            closes = indicators.get(\"close\", [])
+            closes = [c for c in closes if c is not None]
+            if not closes:
+                return None
+            return {
+                \"symbol\": symbol,
+                \"last_price\": closes[-1],
+                \"closes\": closes,
+                \"currency\": result.get(\"meta\", {}).get(\"currency\", \"USD\")
+            }
+    except Exception as e:
+        print(f\"Error fetching {symbol}: {e}\")
         return None
 
-    closes = [float(x) for x in hist["Close"].tolist()]
-    highs  = [float(x) for x in hist["High"].tolist()]
-    lows   = [float(x) for x in hist["Low"].tolist()]
+def save_to_supabase(signal_data):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print(\"Supabase credentials missing.\")
+        return False
+    url = f\"{SUPABASE_URL}/rest/v1/signals\"
+    headers = {
+        \"apikey\": SUPABASE_KEY,
+        \"Authorization\": f\"Bearer {SUPABASE_KEY}\",
+        \"Content-Type\": \"application/json\",
+        \"Prefer\": \"return=minimal\"
+    }
+    try:
+        req = urllib.request.Request(url, data=json.dumps(signal_data).encode(), headers=headers, method=\"POST\")
+        with urllib.request.urlopen(req) as response:
+            return response.status == 201
+    except Exception as e:
+        print(f\"Error saving to Supabase: {e}\")
+        return False
 
-    rsi   = rsi14(closes)
-    hist_ = macd_histogram(closes)
-    boll  = bollinger_signal(closes)
-    entry = closes[-1]
-    sma20 = sma(closes, 20) or entry
-    sma50 = sma(closes, 50) or entry
-    momentum = (entry - sma20) / sma20
-    trend    = (sma20 - sma50) / sma50 if sma50 else 0
-
-    # Score ensemble combinado: momentum + RSI + MACD + Bollinger + trend
-    score = (
-        clamp(momentum * 40, -0.55, 0.55) * 0.30
-        + (rsi - 50) / 100 * 0.25
-        + clamp(math.tanh((hist_ / entry) * 800), -1, 1) * 0.20
-        + (-boll) * 0.15  # contra-tendencia Bollinger
-        + clamp(trend * 60, -0.5, 0.5) * 0.10
-    )
-    score = clamp(score, -1.0, 1.0)
-
-    direction = "buy" if score >= 0 else "sell"
-    prob = round(clamp(0.40 + abs(score) * 0.50, 0.32, 0.94), 3)
-
-    atr    = atr14(highs, lows, closes)
-    sl_dist = clamp(atr * 1.1, entry * 0.0008, entry * 0.04)
-    tp_dist = sl_dist * 1.8
-
-    if direction == "buy":
-        tp = round(entry + tp_dist, decimals)
-        sl = round(entry - sl_dist, decimals)
-    else:
-        tp = round(entry - tp_dist, decimals)
-        sl = round(entry + sl_dist, decimals)
-
-    rr   = tp_dist / sl_dist if sl_dist > 0 else 1.8
-    risk = clamp((atr / entry) * 35 * 0.5 + (0.2 if rr < 1.2 else 0.1), 0.0, 1.0)
-    conf = "high" if prob >= 0.65 else ("medium" if prob >= 0.45 else "low")
-    now  = datetime.now(timezone.utc).isoformat()
-
-    gb_score   = round(clamp(0.5 + momentum * 15 + (rsi - 50) / 200, 0.15, 0.95), 3)
-    lstm_score = round(clamp(0.5 + score * 0.4, 0.15, 0.95), 3)
-
+def generate_signal(asset_info):
+    closes = asset_info[\"closes\"]
+    price = asset_info[\"last_price\"]
+    symbol = asset_info[\"symbol\"]
+    
+    rsi = rsi14(closes)
+    macd = macd_histogram(closes)
+    
+    # Lógica de sinal Ensemble Simplificada
+    # GB (Gradient Boosting proxy) -> Momentum + RSI
+    # LSTM (Neural proxy) -> Mean Reversion + MACD
+    
+    gb_score = 0.5
+    if rsi > 60: gb_score += 0.2
+    if rsi < 40: gb_score -= 0.2
+    
+    lstm_score = 0.5
+    if macd > 0: lstm_score += 0.15
+    if macd < 0: lstm_score -= 0.15
+    
+    combined = (gb_score + lstm_score) / 2
+    direction = \"buy\" if combined >= 0.5 else \"sell\"
+    probability = clamp(combined if direction == \"buy\" else (1 - combined), 0.51, 0.94)
+    
+    # TP/SL baseados em volatilidade simples (ATR approx)
+    volatility = (max(closes[-10:]) - min(closes[-10:])) / 10
+    if volatility == 0: volatility = price * 0.005
+    
+    tp_dist = volatility * 2.5
+    sl_dist = volatility * 1.5
+    
+    tp = price + tp_dist if direction == \"buy\" else price - tp_dist
+    sl = price - sl_dist if direction == \"buy\" else price + sl_dist
+    
+    confidence = \"low\"
+    if probability > 0.75: confidence = \"high\"
+    elif probability > 0.6: confidence = \"medium\"
+    
+    risk = clamp(1.0 - (probability * 0.8), 0.1, 0.9)
+    
     return {
-        "asset":             name,
-        "symbol":           sym,
-        "direction":        direction,
-        "probability":      prob,
-        "tp":               tp,
-        "sl":               sl,
-        "risk_score":       round(risk, 3),
-        "confidence_label": conf,
-        "ensemble_gb":      gb_score,
-        "ensemble_lstm":    lstm_score,
-        "backtest_win_rate": round(clamp(0.52 + (prob - 0.5) * 0.55, 0.50, 0.88), 3),
-        "timeframe":        "1D",
-        "last_price":       round(entry, decimals),
-        "is_fallback":      False,
-        "created_at":       now,
+        \"id\": f\"{symbol}-{int(time.time())}\",
+        \"asset\": next(s[1] for s in SYMBOLS if s[0] == symbol),
+        \"symbol\": symbol,
+        \"direction\": direction,
+        \"probability\": round(float(probability), 4),
+        \"tp\": round(float(tp), 4),
+        \"sl\": round(float(sl), 4),
+        \"riskScore\": round(float(risk), 4),
+        \"confidenceLabel\": confidence,
+        \"ensembleGb\": round(float(gb_score), 4),
+        \"ensembleLstm\": round(float(lstm_score), 4),
+        \"timeframe\": \"1H\",
+        \"lastPrice\": round(float(price), 4),
+        \"isFallback\": False,
+        \"created_at\": datetime.now(timezone.utc).isoformat()
     }
 
-
-def send_telegram(message: str):
-    """Envia mensagem para o canal Telegram (opcional)."""
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHANNEL_ID:
-        return
-    try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = json.dumps({
-            "chat_id": TELEGRAM_CHANNEL_ID,
-            "text": message,
-            "parse_mode": "HTML",
-        }).encode()
-        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req, timeout=10)
-    except Exception as e:
-        print(f"  Telegram erro: {e}", flush=True)
-
-
-def format_telegram_message(signals):
-    """Formata sinais para enviar via Telegram."""
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    lines = [f"<b>TradeAI Signals</b> — {now_str}\n"]
-    for s in signals:
-        direction_emoji = "\U0001f7e2" if s["direction"] == "buy" else "\U0001f534"
-        conf_emoji = "\u2b50" if s["confidence_label"] == "high" else ("\U0001f538" if s["confidence_label"] == "medium" else "\U000026aa")
-        lines.append(
-            f"{direction_emoji} <b>{s['asset']}</b> ({s['symbol']}) — {s['direction'].upper()}\n"
-            f"  Prob: {int(s['probability']*100)}% | Conf: {s['confidence_label'].upper()} {conf_emoji}\n"
-            f"  TP: {s['tp']} | SL: {s['sl']} | Risk: {int(s['risk_score']*100)}%\n"
-        )
-    lines.append("\n<i>Aviso: CFDs envolvem risco elevado. Nao e aconselhamento financeiro.</i>")
-    return "\n".join(lines)
-
-
-def run_once():
-    from supabase import create_client
-
-    sb = create_client(SUPABASE_URL, SUPABASE_KEY)
-    signals = []
-
-    for sym, name, dec in SYMBOLS:
-        try:
-            print(f"  Processando {sym}...", flush=True)
-            row = generate_signal(sym, name, dec)
-            if row:
-                signals.append(row)
-                dir_str = row['direction'].upper()
-                print(f"  OK {sym}: {dir_str} @ {row['last_price']}, prob={row['probability']}, conf={row['confidence_label']}", flush=True)
-        except Exception as e:
-            print(f"  ERRO {sym}: {e}", flush=True)
-
-    if signals:
-        # Limpa sinais antigos e insere os novos
-        sb.table("signals").delete().neq("id", "").execute()
-        sb.table("signals").insert(signals).execute()
-        print(f"Guardados {len(signals)} sinais no Supabase.", flush=True)
-
-        # Envia para Telegram se configurado
-        high_conf = [s for s in signals if s["confidence_label"] == "high"]
-        if high_conf:
-            msg = format_telegram_message(high_conf)
-            send_telegram(msg)
-            print(f"Telegram: {len(high_conf)} sinais high-confidence enviados.", flush=True)
-    else:
-        print("Nenhum sinal gerado.", flush=True)
-
-
-if __name__ == "__main__":
-    print("TradeAI Signals Worker v2 iniciado.", flush=True)
-    print(f"Ciclo a cada {CYCLE_INTERVAL//3600}h {(CYCLE_INTERVAL%3600)//60}m", flush=True)
-    print(f"Ativos: {[s[0] for s in SYMBOLS]}", flush=True)
-    print(f"Telegram: {'configurado' if TELEGRAM_BOT_TOKEN else 'nao configurado'}", flush=True)
+def main():
+    print(\"TradeAI Worker Started.\")
     while True:
-        print(f"\n[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC] A gerar sinais...", flush=True)
-        try:
-            run_once()
-        except Exception as e:
-            print(f"Erro no ciclo principal: {e}", flush=True)
-        print(f"Aguardando {CYCLE_INTERVAL//3600}h...", flush=True)
+        print(f\"Starting cycle at {datetime.now()}\")
+        for sym, name, prec in SYMBOLS:
+            data = get_yfinance_data(sym)
+            if data:
+                signal = generate_signal(data)
+                if save_to_supabase(signal):
+                    print(f\"Signal saved: {sym} -> {signal['direction'].upper()}\")
+                time.sleep(1) # Rate limit
+        
+        print(f\"Cycle finished. Waiting {CYCLE_INTERVAL}s...\")
         time.sleep(CYCLE_INTERVAL)
+
+if __name__ == \"__main__\":
+    main()
