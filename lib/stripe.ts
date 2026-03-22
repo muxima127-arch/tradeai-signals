@@ -9,7 +9,7 @@ export function getStripe(): Stripe {
   }
   if (!stripeSingleton) {
     stripeSingleton = new Stripe(key, {
-            apiVersion: "2024-12-18.acacia",
+                  apiVersion: "2026-02-25.clover",
       typescript: true,
     });
   }
